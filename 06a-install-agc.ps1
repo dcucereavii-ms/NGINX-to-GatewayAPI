@@ -1,0 +1,45 @@
+# =============================================================================
+# 06a-install-agc.ps1  —  Azure Application Gateway for Containers
+#   Docs: https://learn.microsoft.com/azure/application-gateway/for-containers/
+# =============================================================================
+. "$PSScriptRoot/00-variables.ps1"
+$ErrorActionPreference = "Stop"
+
+Write-Host "==> Registering required providers/features (idempotent)" -ForegroundColor Green
+az provider register --namespace Microsoft.ContainerService | Out-Null
+az provider register --namespace Microsoft.ServiceNetworking | Out-Null
+
+Write-Host "==> Installing Gateway API CRDs (standard channel)" -ForegroundColor Green
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml | Out-Null
+
+Write-Host "==> Creating user-assigned identity for ALB controller" -ForegroundColor Green
+$IDENTITY = "$PREFIX-alb-id"
+az identity create -g $RG -n $IDENTITY -l $LOCATION | Out-Null
+$identityClientId = az identity show -g $RG -n $IDENTITY --query clientId -o tsv
+$identityPrincipalId = az identity show -g $RG -n $IDENTITY --query principalId -o tsv
+$mcRg = az aks show -g $RG -n $AKS --query nodeResourceGroup -o tsv
+
+# AppGw for Containers Configuration Manager role on the AKS node RG
+az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal `
+    --role "fbc52c3f-28ad-4303-a892-8a056630b8f1" `
+    --scope (az group show -n $mcRg --query id -o tsv) | Out-Null
+# Reader on RG for the controller
+az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal `
+    --role "Reader" `
+    --scope (az group show -n $RG --query id -o tsv) | Out-Null
+
+Write-Host "==> Federating identity for the controller SA" -ForegroundColor Green
+$oidc = az aks show -g $RG -n $AKS --query oidcIssuerProfile.issuerUrl -o tsv
+az identity federated-credential create -g $RG -n alb-fc --identity-name $IDENTITY `
+    --issuer $oidc --subject "system:serviceaccount:azure-alb-system:alb-controller-sa" `
+    --audience api://AzureADTokenExchange | Out-Null
+
+Write-Host "==> Helm installing alb-controller" -ForegroundColor Green
+helm upgrade --install alb-controller oci://mcr.microsoft.com/application-lb/charts/alb-controller `
+    --namespace azure-alb-system --create-namespace `
+    --version 1.4.0 `
+    --set albController.namespace=azure-alb-system `
+    --set albController.podIdentity.clientID=$identityClientId | Out-Null
+
+Write-Host "`n✅ AGC controller installed. The ALB resource is created on first Gateway apply." -ForegroundColor Cyan
+"AGC_IDENTITY_CLIENT_ID=$identityClientId" | Add-Content "$PSScriptRoot/.poc-state"

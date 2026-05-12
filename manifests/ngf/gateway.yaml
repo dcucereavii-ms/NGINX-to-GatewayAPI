@@ -1,0 +1,99 @@
+# Gateway for NGINX Gateway Fabric — 3 listeners, 3 certs.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: __GW__
+  namespace: __NS_GW__
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: app1-https
+      protocol: HTTPS
+      port: 443
+      hostname: __HOST_APP1__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            group: ""
+            namespace: __NS_APP1__
+            name: tls-app1
+      allowedRoutes:
+        namespaces: { from: All }
+    - name: app2-https
+      protocol: HTTPS
+      port: 443
+      hostname: __HOST_APP2__
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            group: ""
+            namespace: __NS_APP2__
+            name: tls-app2
+      allowedRoutes:
+        namespaces: { from: All }
+    - name: dev-wildcard-https
+      protocol: HTTPS
+      port: 443
+      hostname: "__HOST_WILDCARD__"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            group: ""
+            namespace: __NS_APP3__
+            name: tls-app3
+      allowedRoutes:
+        namespaces: { from: All }
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: app1-route, namespace: __NS_APP1__ }
+spec:
+  parentRefs: [{ name: __GW__, namespace: __NS_GW__, sectionName: app1-https }]
+  hostnames: ["__HOST_APP1__"]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs: [{ name: app1, port: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: app2-route, namespace: __NS_APP2__ }
+spec:
+  parentRefs: [{ name: __GW__, namespace: __NS_GW__, sectionName: app2-https }]
+  hostnames: ["__HOST_APP2__"]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs: [{ name: app2, port: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: app3-route, namespace: __NS_APP3__ }
+spec:
+  parentRefs: [{ name: __GW__, namespace: __NS_GW__, sectionName: dev-wildcard-https }]
+  hostnames: ["__HOST_APP3__"]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs: [{ name: app3, port: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: { name: gw-to-app1, namespace: __NS_APP1__ }
+spec:
+  from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
+  to:   [{ group: "",                         kind: Secret }]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: { name: gw-to-app2, namespace: __NS_APP2__ }
+spec:
+  from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
+  to:   [{ group: "",                         kind: Secret }]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: { name: gw-to-app3, namespace: __NS_APP3__ }
+spec:
+  from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
+  to:   [{ group: "",                         kind: Secret }]

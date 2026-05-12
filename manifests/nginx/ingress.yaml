@@ -1,0 +1,55 @@
+# Single Ingress proving multi-host + multi-cert on NGINX (Phase 1 baseline).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poc-ingress
+  namespace: app1   # NGINX supports cross-namespace via separate Ingress per ns;
+                    # we keep one per ns so each can reference its own tls secret.
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [__HOST_APP1__]
+      secretName: tls-app1
+  rules:
+    - host: __HOST_APP1__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: app1, port: { number: 80 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poc-ingress
+  namespace: app2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [__HOST_APP2__]
+      secretName: tls-app2
+  rules:
+    - host: __HOST_APP2__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: app2, port: { number: 80 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poc-ingress
+  namespace: app3
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [__HOST_APP3__]
+      secretName: tls-app3        # served by the *.dev wildcard cert
+  rules:
+    - host: __HOST_APP3__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: app3, port: { number: 80 } } }

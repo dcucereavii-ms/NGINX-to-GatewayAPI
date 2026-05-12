@@ -1,0 +1,7 @@
+.poc-state
+.certs/
+*.pfx
+*.key
+*.crt
+*.cnf
+*.log

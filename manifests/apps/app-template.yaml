@@ -1,0 +1,89 @@
+# Template: __APP__ in namespace __NS__ serving hostname __HOST__
+# Cert __CERT_NAME__ pulled from Key Vault __KV_NAME__ via CSI driver,
+# SYNCED as kubernetes.io/tls Secret named tls-__APP__.
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: kv-__APP__
+  namespace: __NS__
+spec:
+  provider: azure
+  secretObjects:
+    - secretName: tls-__APP__
+      type: kubernetes.io/tls
+      data:
+        - objectName: __CERT_NAME__
+          key: tls.key
+        - objectName: __CERT_NAME__
+          key: tls.crt
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: "__KV_CLIENT_ID__"
+    keyvaultName: "__KV_NAME__"
+    tenantId: "__TENANT_ID__"
+    objects: |
+      array:
+        - |
+          objectName: __CERT_NAME__
+          objectType: secret      # certificate stored as secret in PEM
+          objectAlias: __CERT_NAME__
+---
+# Syncer pod: mounts the SPC volume so the CSI driver creates the tls secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kv-syncer-__APP__
+  namespace: __NS__
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: kv-syncer-__APP__ } }
+  template:
+    metadata:
+      labels: { app: kv-syncer-__APP__ }
+    spec:
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          volumeMounts:
+            - name: kv
+              mountPath: /mnt/kv
+              readOnly: true
+      volumes:
+        - name: kv
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: kv-__APP__
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __APP__
+  namespace: __NS__
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: __APP__ } }
+  template:
+    metadata:
+      labels: { app: __APP__ }
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-text=hello from __APP__ (host __HOST__)"]
+          ports: [{ containerPort: 5678 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: __APP__
+  namespace: __NS__
+spec:
+  selector: { app: __APP__ }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
