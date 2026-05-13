@@ -32,6 +32,14 @@ $global:NS_GW   = "gw"
 # ---- Gateway names ----
 $global:GW_NAME = "poc-gateway"
 
+# ---- Gateway LoadBalancer exposure ----
+# Set to $true to provision the App Routing Istio Gateway behind an INTERNAL
+# Azure Load Balancer (private IP only). Set to $false for a public IP (default).
+$global:INTERNAL_LB = $false
+# Optional: pin the internal LB to a specific subnet (must exist in the AKS
+# vnet). Leave empty to let the cloud-provider pick the node subnet.
+$global:INTERNAL_LB_SUBNET = ""
+
 function Initialize-Poc {
     az account set --subscription $SUBSCRIPTION_ID | Out-Null
     $sub = az account show --query name -o tsv

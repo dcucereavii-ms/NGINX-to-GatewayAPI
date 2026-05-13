@@ -15,6 +15,12 @@ metadata:
   name: __GW__
   namespace: __NS_GW__
 spec:
+  # Annotations placed here propagate to the auto-provisioned Service that
+  # fronts the Istio data plane (i.e. the cloud LoadBalancer). This is how
+  # we flip the Gateway between a public and an internal (private IP) LB.
+  infrastructure:
+    annotations:
+__INFRA_ANNOTATIONS__
   gatewayClassName: approuting-istio
   listeners:
     - name: app1-https

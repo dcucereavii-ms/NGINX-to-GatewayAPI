@@ -5,6 +5,27 @@ Initialize-Poc
 Write-Host "==> Ensuring namespace $($global:NS_GW)" -ForegroundColor Cyan
 kubectl create namespace $global:NS_GW --dry-run=client -o yaml | kubectl apply -f -
 
+# Build the infrastructure.annotations block (YAML, 6-space indented to sit
+# under spec.infrastructure.annotations). Always emit the internal=true/false
+# annotation explicitly so the intent is visible on the Gateway object.
+$lbValue = if ($global:INTERNAL_LB) { 'true' } else { 'false' }
+$infraLines = @(
+    "      service.beta.kubernetes.io/azure-load-balancer-internal: `"$lbValue`""
+)
+if ($global:INTERNAL_LB -and $global:INTERNAL_LB_SUBNET) {
+    $infraLines += "      service.beta.kubernetes.io/azure-load-balancer-internal-subnet: `"$($global:INTERNAL_LB_SUBNET)`""
+}
+$infraBlock = $infraLines -join "`n"
+
+if ($global:INTERNAL_LB) {
+    Write-Host "==> Gateway LB mode: INTERNAL (private IP)" -ForegroundColor Yellow
+    if ($global:INTERNAL_LB_SUBNET) {
+        Write-Host "    Pinned to subnet: $($global:INTERNAL_LB_SUBNET)" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "==> Gateway LB mode: PUBLIC" -ForegroundColor Cyan
+}
+
 $tpl = Get-Content "$PSScriptRoot/manifests/istio/gateway.yaml" -Raw
 $rendered = $tpl `
     -replace '__GW__',           $global:GW_NAME `
@@ -15,7 +36,8 @@ $rendered = $tpl `
     -replace '__HOST_APP1__',    $global:HOST_APP1 `
     -replace '__HOST_APP2__',    $global:HOST_APP2 `
     -replace '__HOST_APP3__',    $global:HOST_APP3 `
-    -replace '__HOST_WILDCARD__', $global:HOST_WILDCARD
+    -replace '__HOST_WILDCARD__', $global:HOST_WILDCARD `
+    -replace '__INFRA_ANNOTATIONS__', $infraBlock
 
 $tmp = New-TemporaryFile
 $rendered | Set-Content $tmp.FullName -Encoding utf8
