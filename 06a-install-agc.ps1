@@ -10,7 +10,8 @@ az provider register --namespace Microsoft.ContainerService | Out-Null
 az provider register --namespace Microsoft.ServiceNetworking | Out-Null
 
 Write-Host "==> Installing Gateway API CRDs (standard channel)" -ForegroundColor Green
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml | Out-Null
+# CRDs are too large for client-side apply since v1.3+ — use server-side apply.
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml | Out-Null
 
 Write-Host "==> Creating user-assigned identity for ALB controller" -ForegroundColor Green
 $IDENTITY = "$PREFIX-alb-id"
@@ -35,9 +36,11 @@ az identity federated-credential create -g $RG -n alb-fc --identity-name $IDENTI
     --audience api://AzureADTokenExchange | Out-Null
 
 Write-Host "==> Helm installing alb-controller" -ForegroundColor Green
+# Check the latest chart version before running:
+#   helm show chart oci://mcr.microsoft.com/application-lb/charts/alb-controller
+# Pin to a specific version in production; omit --version to track latest.
 helm upgrade --install alb-controller oci://mcr.microsoft.com/application-lb/charts/alb-controller `
     --namespace azure-alb-system --create-namespace `
-    --version 1.4.0 `
     --set albController.namespace=azure-alb-system `
     --set albController.podIdentity.clientID=$identityClientId | Out-Null
 

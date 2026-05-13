@@ -7,8 +7,11 @@
 $svc = "$($global:GW_NAME)-approuting-istio"
 $ip = kubectl get svc $svc -n $global:NS_GW -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
 if (-not $ip) {
-    $state = Get-Content "$PSScriptRoot/.poc-state" -Raw | ConvertFrom-Json
-    $ip = $state.GW_IP
+    if (Test-Path "$PSScriptRoot/.poc-state") {
+        Get-Content "$PSScriptRoot/.poc-state" | ForEach-Object {
+            if ($_ -match '^GW_IP=(.+)$') { $ip = $Matches[1] }
+        }
+    }
 }
 if (-not $ip) { throw "Gateway IP not found." }
 Write-Host "Targeting Gateway at $ip`n" -ForegroundColor Cyan

@@ -62,8 +62,9 @@ Write-Host "Gateway is Programmed." -ForegroundColor Green
 
 Write-Host ""
 Write-Host "==> Discovering Gateway service IP" -ForegroundColor Cyan
-# App Routing creates a Service named <gateway-name>-istio in the same namespace
-$svc = "$($global:GW_NAME)-istio"
+# App Routing creates a Service named <gateway-name>-approuting-istio in the
+# Gateway namespace (the suffix changed when the add-on moved out of preview).
+$svc = "$($global:GW_NAME)-approuting-istio"
 $gwIp = $null
 for ($i = 0; $i -lt 60; $i++) {
     $gwIp = kubectl get svc $svc -n $global:NS_GW -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
@@ -79,10 +80,13 @@ if (-not $gwIp) {
 
 Write-Host "Gateway external IP: $gwIp" -ForegroundColor Green
 
-# Persist GW_IP into .poc-state
-$state = Get-Content "$PSScriptRoot/.poc-state" -Raw | ConvertFrom-Json
-$state | Add-Member -NotePropertyName GW_IP -NotePropertyValue $gwIp -Force
-$state | ConvertTo-Json | Set-Content "$PSScriptRoot/.poc-state" -Encoding utf8
+# Persist GW_IP into .poc-state (key=value lines, matching scripts 01/03).
+# Replace any existing GW_IP= line, otherwise append.
+$stateFile = "$PSScriptRoot/.poc-state"
+$lines = if (Test-Path $stateFile) { Get-Content $stateFile } else { @() }
+$lines = @($lines | Where-Object { $_ -and ($_ -notlike 'GW_IP=*') })
+$lines += "GW_IP=$gwIp"
+$lines | Set-Content $stateFile -Encoding utf8
 
 Write-Host ""
 Write-Host "==> Routes status" -ForegroundColor Cyan

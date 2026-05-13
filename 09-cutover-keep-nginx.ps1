@@ -16,17 +16,23 @@
 # =============================================================================
 . "$PSScriptRoot/00-variables.ps1"
 
-$state = Get-Content "$PSScriptRoot/.poc-state" -Raw | ConvertFrom-Json
+# Load .poc-state (key=value lines) into a hashtable
+$state = @{}
+if (Test-Path "$PSScriptRoot/.poc-state") {
+    Get-Content "$PSScriptRoot/.poc-state" | ForEach-Object {
+        if ($_ -match '^([^=]+)=(.*)$') { $state[$Matches[1]] = $Matches[2] }
+    }
+}
 
 # Refresh IPs from the cluster (state file is best-effort)
 $nginxIp = kubectl get svc -n ingress-nginx ingress-nginx-controller `
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
-if (-not $nginxIp) { $nginxIp = $state.NGINX_IP }
+if (-not $nginxIp) { $nginxIp = $state['NGINX_IP'] }
 
 $gwSvc = "$($global:GW_NAME)-approuting-istio"
 $gwIp = kubectl get svc -n $global:NS_GW $gwSvc `
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
-if (-not $gwIp) { $gwIp = $state.GW_IP }
+if (-not $gwIp) { $gwIp = $state['GW_IP'] }
 
 if (-not $nginxIp -or -not $gwIp) {
     throw "Could not resolve both NGINX ($nginxIp) and Gateway ($gwIp) IPs."

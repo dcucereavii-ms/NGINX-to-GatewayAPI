@@ -3,7 +3,9 @@
 # =============================================================================
 
 # ---- Existing resources (reused) ----
-$global:SUBSCRIPTION_ID = "e550fb1a-dd92-4ffc-ab4a-363e04ffe7c3"
+# Replace with your subscription ID before running, or override at the shell:
+#   $env:SUBSCRIPTION_ID = "<your-sub-id>"; .\01-create-infra.ps1
+$global:SUBSCRIPTION_ID = if ($env:SUBSCRIPTION_ID) { $env:SUBSCRIPTION_ID } else { "<YOUR-SUBSCRIPTION-ID>" }
 $global:RG              = "rg-gateway-test"
 $global:AKS             = "aks-gateway-test"
 $global:LOCATION        = "canadacentral"

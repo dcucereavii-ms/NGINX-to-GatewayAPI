@@ -231,7 +231,7 @@ Create one `Ingress` per host:
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-metadata: { name: app1-ing, namespace: app1 }
+metadata: { name: poc-ingress, namespace: app1 }
 spec:
   ingressClassName: nginx
   tls:
@@ -429,7 +429,7 @@ kubectl describe gateway poc-gateway -n gw
 # All HTTPRoutes should show as Accepted=True
 kubectl get httproute -A
 
-# The App Routing add-on creates a Service called <gateway>-istio
+# The App Routing add-on creates a Service called <gateway>-approuting-istio
 kubectl get svc -n gw poc-gateway-approuting-istio
 $gwIp = kubectl get gateway poc-gateway -n gw `
   -o jsonpath='{.status.addresses[0].value}'
@@ -474,9 +474,10 @@ backends, so no data loss.
 
 ```powershell
 # Remove app-level Ingress objects first
-kubectl delete ingress -n app1 app1-ing
-kubectl delete ingress -n app2 app2-ing
-kubectl delete ingress -n app3 app3-ing
+# Each app namespace has a single Ingress named 'poc-ingress'
+kubectl delete ingress -n app1 poc-ingress
+kubectl delete ingress -n app2 poc-ingress
+kubectl delete ingress -n app3 poc-ingress
 
 # Then uninstall the controller
 helm uninstall ingress-nginx -n ingress-nginx

@@ -6,7 +6,8 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "==> Installing Gateway API CRDs (standard channel)" -ForegroundColor Green
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml | Out-Null
+# CRDs are too large for client-side apply since v1.3+ — use server-side apply.
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml | Out-Null
 
 Write-Host "==> Helm installing NGINX Gateway Fabric" -ForegroundColor Green
 helm upgrade --install ngf oci://ghcr.io/nginx/charts/nginx-gateway-fabric `
