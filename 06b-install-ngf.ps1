@@ -1,12 +1,18 @@
 # =============================================================================
 # 06b-install-ngf.ps1  —  NGINX Gateway Fabric
 #   Docs: https://docs.nginx.com/nginx-gateway-fabric/
+#
+# WARNING: This script is an ALTERNATIVE path. Do NOT run it on a cluster that
+# already has the AKS managed Gateway API add-on enabled (the primary path of
+# this POC, set up in 01-create-infra.ps1). On such clusters the AKS admission
+# webhook owns the Gateway API CRDs and will reject the apply below.
 # =============================================================================
 . "$PSScriptRoot/00-variables.ps1"
 $ErrorActionPreference = "Stop"
 
 Write-Host "==> Installing Gateway API CRDs (standard channel)" -ForegroundColor Green
 # CRDs are too large for client-side apply since v1.3+ — use server-side apply.
+# Skip this on clusters with managed Gateway API enabled (CRDs are managed by AKS).
 kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml | Out-Null
 
 Write-Host "==> Helm installing NGINX Gateway Fabric" -ForegroundColor Green

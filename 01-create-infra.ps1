@@ -17,7 +17,7 @@ if (-not $info.oidc -or -not $info.wi -or -not $info.kvcsi) {
     throw "Cluster missing required features (OIDC=$($info.oidc) WI=$($info.wi) KV-CSI=$($info.kvcsi))."
 }
 if ($info.gwApi -ne "Standard") {
-    throw "AKS Gateway API add-on not installed. Enable with: az aks update -g $RG -n $AKS --enable-gateway-api"
+    throw "AKS Gateway API add-on not installed. Enable with: az aks update -g $RG -n $AKS --enable-managed-gateway-api"
 }
 if ($info.istio -ne "Enabled") {
     throw "App Routing managed Istio Gateway API implementation not enabled. Enable with: az aks approuting update -g $RG -n $AKS --enable-istio-gateway-api  (preview)  -- see https://learn.microsoft.com/azure/aks/app-routing-managed-gateway"
