@@ -1,0 +1,261 @@
+# ---------------------------------------------------------------------------
+# Worked examples for the NGINX annotation -> Gateway API translation table.
+#
+# These back the "Step 6 - Convert Ingress to HTTPRoute" examples in the blog
+# post. Every rule here was applied to a live AKS cluster (K8s 1.34.4, Gateway
+# API bundle v1.3.0, standard channel, gatewayClassName: approuting-istio) and
+# the observed output is recorded in the comments.
+#
+# Covers:
+#   nginx.ingress.kubernetes.io/ssl-redirect      -> RequestRedirect filter
+#   nginx.ingress.kubernetes.io/canary-weight     -> backendRefs[].weight
+#   nginx.ingress.kubernetes.io/canary-by-header  -> matches.headers[]
+#   nginx.ingress.kubernetes.io/rewrite-target    -> URLRewrite filter
+#
+# Deploy:
+#   kubectl create namespace adv
+#   kubectl apply -f manifests/advanced/annotation-translations.yaml
+#
+# This example is SELF-CONTAINED and independent of the main POC (app1/app2/
+# app3). It uses its own Gateway so it can be deployed and deleted on its own.
+#
+# NOTE: this Gateway is PUBLIC. Add the internal-LB annotation shown in
+# manifests/istio/gateway.yaml if you want a private IP.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: adv
+---
+# --- Backends -------------------------------------------------------------
+# shop-v1 / shop-v2 return distinct strings so weighted and header-based
+# routing can be observed directly in the response body.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-v1
+  namespace: adv
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: shop, ver: v1 }
+  template:
+    metadata:
+      labels: { app: shop, ver: v1 }
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-text=SHOP v1 (stable)"]
+          ports:
+            - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-v1
+  namespace: adv
+spec:
+  selector: { app: shop, ver: v1 }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-v2
+  namespace: adv
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: shop, ver: v2 }
+  template:
+    metadata:
+      labels: { app: shop, ver: v2 }
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0
+          args: ["-text=SHOP v2 (canary)"]
+          ports:
+            - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-v2
+  namespace: adv
+spec:
+  selector: { app: shop, ver: v2 }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5678
+---
+# api echoes the request back as JSON, which makes the URLRewrite and
+# RequestHeaderModifier filters observable in the response.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: adv
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      containers:
+        - name: echo
+          image: mendhak/http-https-echo:35
+          env:
+            - name: HTTP_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: adv
+spec:
+  selector: { app: api }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+# --- Gateway --------------------------------------------------------------
+# Two listeners on the same hostname: :80 exists ONLY to serve the redirect,
+# which is how ssl-redirect is reproduced. The TLS Secret lives in this same
+# namespace, so no ReferenceGrant is needed here.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: adv-gateway
+  namespace: adv
+spec:
+  gatewayClassName: approuting-istio
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: shop.contoso.local
+      allowedRoutes: { namespaces: { from: All } }
+
+    - name: shop-https
+      protocol: HTTPS
+      port: 443
+      hostname: shop.contoso.local
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - { kind: Secret, group: "", name: tls-shop }
+      allowedRoutes: { namespaces: { from: All } }
+---
+# --- 1. ssl-redirect / force-ssl-redirect ---------------------------------
+# Replaces: nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#
+# Verified:
+#   $ curl -D - "http://shop.contoso.local/checkout?x=1" \
+#       --resolve shop.contoso.local:80:<GW-IP>
+#   HTTP/1.1 301 Moved Permanently
+#   location: https://shop.contoso.local/checkout?x=1   <- path AND query kept
+#   server: istio-envoy
+#
+# Path and query string are preserved automatically - you do not restate them.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: shop-redirect
+  namespace: adv
+spec:
+  parentRefs:
+    - name: adv-gateway
+      sectionName: http
+  hostnames: ["shop.contoso.local"]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# --- 2/3/4. canary-by-header, rewrite-target, canary-weight ---------------
+# All three live in ONE HTTPRoute. Rule ORDER IN THE FILE IS IRRELEVANT:
+# Gateway API precedence is specified, not emergent -
+#   exact path -> longest PathPrefix -> method -> most header matches ->
+#   most query-param matches; ties break by oldest creationTimestamp,
+#   then namespace/name.
+# The header rule below therefore wins over the catch-all "/" rule even
+# though both match "/".
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: shop-routes
+  namespace: adv
+spec:
+  parentRefs:
+    - name: adv-gateway
+      sectionName: shop-https
+  hostnames: ["shop.contoso.local"]
+  rules:
+    # --- canary-by-header ---
+    # Replaces: nginx.ingress.kubernetes.io/canary-by-header: x-canary
+    # (and the second, duplicate Ingress object NGINX required for it)
+    #
+    # Verified:
+    #   with    x-canary: always  -> 5/5 SHOP v2 (canary)
+    #   without the header        -> 5/5 SHOP v1 (stable)
+    - matches:
+        - path: { type: PathPrefix, value: / }
+          headers:
+            - { name: x-canary, type: Exact, value: always }
+      backendRefs:
+        - { name: shop-v2, port: 80 }
+
+    # --- rewrite-target + header injection ---
+    # Replaces: nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # No capture groups, no regex - ReplacePrefixMatch strips the matched
+    # prefix only.
+    #
+    # Verified:
+    #   $ curl -sk https://shop.contoso.local/api/orders
+    #   {
+    #     "path": "/orders",                        <- /api stripped
+    #     "headers": {
+    #       "x-forwarded-by": "gateway-api",        <- injected
+    #       "x-envoy-original-path": "/api/orders", <- original kept, for free
+    #       ...
+    #     }
+    #   }
+    - matches: [{ path: { type: PathPrefix, value: /api } }]
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: / }
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            add:
+              - { name: x-forwarded-by, value: gateway-api }
+      backendRefs:
+        - { name: api, port: 80 }
+
+    # --- canary-weight ---
+    # Replaces: nginx.ingress.kubernetes.io/canary-weight: "10"
+    #
+    # Verified over 100 requests: 92x v1 / 8x v2 (weights are statistical,
+    # not a quota - do not expect exactly 90/10 on small samples).
+    #
+    # weight: 0 is valid - use it to pre-wire a canary that receives nothing
+    # yet, then raise it without touching routing structure.
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs:
+        - { name: shop-v1, port: 80, weight: 90 }
+        - { name: shop-v2, port: 80, weight: 10 }

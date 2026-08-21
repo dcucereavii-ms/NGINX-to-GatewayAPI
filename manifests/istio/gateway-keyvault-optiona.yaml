@@ -1,0 +1,111 @@
+# ---------------------------------------------------------------------------
+# Option A - let the App Routing operator build the Key Vault -> TLS chain.
+#
+# This is the "Step 3, Option A" path in the blog post. Compare with
+# manifests/apps/app-template.yaml, which is Option B (SecretProviderClass +
+# syncer Deployment written and maintained by you).
+#
+# What you DON'T write with Option A:
+#   - the SecretProviderClass
+#   - the syncer Deployment that holds the CSI mount open
+#   - tls.certificateRefs (the operator patches it in)
+#   - the KV CSI add-on clientId that Option B makes you re-patch whenever
+#     the add-on identity is recreated
+#
+# Rotation is handled for you because the Key Vault URI below is UNVERSIONED.
+#
+# ---------------------------------------------------------------------------
+# PREREQUISITES
+# ---------------------------------------------------------------------------
+# 1. App Routing operator + the Gateway API implementation. BOTH are needed:
+#    the operator that does this work ships with --enable-app-routing, not
+#    with --enable-app-routing-istio.
+#
+#      az aks approuting enable -g $RG -n $AKS
+#      kubectl get crd | grep approuting
+#      #   clusterexternaldnses.approuting.kubernetes.azure.com
+#      #   externaldnses.approuting.kubernetes.azure.com
+#      #   nginxingresscontrollers.approuting.kubernetes.azure.com
+#
+# 2. Workload Identity + OIDC issuer:
+#      az aks update -g $RG -n $AKS --enable-oidc-issuer --enable-workload-identity
+#
+# 3. A user-assigned managed identity with "Key Vault Secrets User", federated
+#    to the ServiceAccount named in the listener options below:
+#
+#      az identity create -g $RG -n id-gw-kv -l $LOC
+#      UAMI_CLIENT=$(az identity show -g $RG -n id-gw-kv --query clientId -o tsv)
+#      UAMI_OID=$(az identity show -g $RG -n id-gw-kv --query principalId -o tsv)
+#
+#      az role assignment create --assignee-object-id "$UAMI_OID" \
+#        --assignee-principal-type ServicePrincipal \
+#        --role "Key Vault Secrets User" \
+#        --scope "$(az keyvault show -n $KV --query id -o tsv)"
+#
+#      # the ServiceAccount must live in the GATEWAY's namespace
+#      kubectl create sa gw-kv-sa -n gw
+#      kubectl annotate sa gw-kv-sa -n gw \
+#        azure.workload.identity/client-id=$UAMI_CLIENT
+#
+#      az identity federated-credential create --name fc-gw-kv-sa -g $RG \
+#        --identity-name id-gw-kv \
+#        --issuer "$(az aks show -g $RG -n $AKS --query oidcIssuerProfile.issuerUrl -o tsv)" \
+#        --subject "system:serviceaccount:gw:gw-kv-sa" \
+#        --audience api://AzureADTokenExchange
+#
+# NOTE: --attach-kv and --attach-zones are NOT part of this. Those flags drive
+# the add-on's own managed identity and belong to the legacy NGINX experience.
+# The Gateway API integration uses Workload Identity, so you create and
+# federate your own identity instead.
+#
+# ---------------------------------------------------------------------------
+# OBSERVED RESULT (live cluster, ~45 seconds after apply)
+# ---------------------------------------------------------------------------
+#   $ kubectl get secretproviderclass -n gw
+#   NAME                                    AGE
+#   kv-gw-cert-optiona-gateway-app1-https   46s     <- nobody wrote this
+#
+#   $ kubectl get secret -n gw --field-selector type=kubernetes.io/tls
+#   NAME                                    TYPE                DATA   AGE
+#   kv-gw-cert-optiona-gateway-app1-https   kubernetes.io/tls   2      44s
+#
+#   $ kubectl get gateway -n gw optiona-gateway
+#   NAME              CLASS              ADDRESS          PROGRAMMED   AGE
+#   optiona-gateway   approuting-istio   20.220.244.118   True         46s
+#
+#   $ kubectl get gateway -n gw optiona-gateway \
+#       -o jsonpath='{.spec.listeners[0].tls.certificateRefs}'
+#   [{"group":"","kind":"Secret",
+#     "name":"kv-gw-cert-optiona-gateway-app1-https","namespace":"gw"}]
+#
+# certificateRefs is ABSENT in this file. The operator fills it in. If you
+# re-export the live Gateway you will see it populated - that is expected and
+# is not drift.
+#
+# The syncer does not disappear, it just stops being yours: the operator
+# creates the same pause-container Deployment as Option B, owned by the
+# SecretProviderClass, running mcr.microsoft.com/oss/kubernetes/pause:3.10.
+# Delete it and it comes back.
+# ---------------------------------------------------------------------------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: optiona-gateway
+  namespace: gw
+spec:
+  gatewayClassName: approuting-istio
+  listeners:
+    - name: app1-https
+      protocol: HTTPS
+      port: 443
+      hostname: app1.contoso.local
+      tls:
+        mode: Terminate
+        # No certificateRefs. These two options are the entire integration.
+        options:
+          # UNVERSIONED certificate URI - this is what makes rotation automatic.
+          # A versioned URI pins you to one certificate version forever.
+          kubernetes.azure.com/tls-cert-keyvault-uri: https://gwpoc5621-kv.vault.azure.net/certificates/cert-app1
+          # ServiceAccount federated to the UAMI, in THIS namespace.
+          kubernetes.azure.com/tls-cert-service-account: gw-kv-sa
+      allowedRoutes: { namespaces: { from: All } }

@@ -82,18 +82,24 @@ kind: ReferenceGrant
 metadata: { name: gw-to-app1, namespace: __NS_APP1__ }
 spec:
   from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
-  to:   [{ group: "",                         kind: Secret }]
+  # Pin `name`: without it this grants the Gateway namespace read access to
+  # EVERY Secret in this namespace, present and future (incl. app credentials).
+  to:   [{ group: "",                         kind: Secret, name: tls-app1 }]
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata: { name: gw-to-app2, namespace: __NS_APP2__ }
 spec:
   from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
-  to:   [{ group: "",                         kind: Secret }]
+  # Pin `name`: without it this grants the Gateway namespace read access to
+  # EVERY Secret in this namespace, present and future (incl. app credentials).
+  to:   [{ group: "",                         kind: Secret, name: tls-app2 }]
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata: { name: gw-to-app3, namespace: __NS_APP3__ }
 spec:
   from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: __NS_GW__ }]
-  to:   [{ group: "",                         kind: Secret }]
+  # Pin `name`: without it this grants the Gateway namespace read access to
+  # EVERY Secret in this namespace, present and future (incl. app credentials).
+  to:   [{ group: "",                         kind: Secret, name: tls-app3 }]

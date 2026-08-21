@@ -40,7 +40,7 @@ The full step-by-step explanation lives in **[PLAYBOOK.md](PLAYBOOK.md)**.
 
 | Tool | Version |
 |---|---|
-| Azure CLI | 2.60+ (`az login`) with `aks-preview` extension |
+| Azure CLI | 2.86.0+ (`az login`) — required for `--enable-gateway-api` and `--enable-app-routing-istio` |
 | kubectl | 1.29+ |
 | helm | 3.14+ |
 | pwsh | 7+ |
@@ -66,6 +66,13 @@ AKS cluster requirements: OIDC issuer + Workload Identity enabled, KV Secrets Pr
 | 10 | [10-cleanup.ps1](10-cleanup.ps1) | Tear down POC resources — **review before running** |
 
 Manifests live under [manifests/](manifests/).
+
+Two extras that the scripts do not deploy, referenced by the blog post:
+
+| Manifest | Purpose |
+|---|---|
+| [manifests/istio/gateway-keyvault-optiona.yaml](manifests/istio/gateway-keyvault-optiona.yaml) | **Option A** — the App Routing operator builds the Key Vault → TLS chain for you. No `SecretProviderClass`, no syncer Deployment, no `certificateRefs`; rotation via an unversioned KV URI. |
+| [manifests/advanced/annotation-translations.yaml](manifests/advanced/annotation-translations.yaml) | Self-contained worked examples for `ssl-redirect`, `canary-weight`, `canary-by-header` and `rewrite-target`, each with its verified output recorded inline. |
 
 The full narrative, including gotchas we hit and how we fixed them, is in **[PLAYBOOK.md](PLAYBOOK.md)**.
 
@@ -111,7 +118,8 @@ If you'd rather try **Application Gateway for Containers (AGC)** or **NGINX Gate
 | `nginx.ingress.kubernetes.io/canary-weight` | `HTTPRoute.rules.backendRefs[].weight` |
 | `nginx.ingress.kubernetes.io/ssl-redirect` | Listener on :80 with `HTTPRoute` filter `RequestRedirect{scheme: https}` |
 | `nginx.ingress.kubernetes.io/configuration-snippet` | **No portable equivalent.** Use controller-specific extensions (Istio `EnvoyFilter`, AGC `RoutePolicy`, NGF `SnippetsFilter`). Gap to flag. |
-| `auth-url` / `auth-tls-*` | `BackendTLSPolicy` + (controller-specific) auth filters |
+| `auth-url` (external auth) | No Gateway API resource. Envoy `ext_authz` / controller-specific auth filter. |
+| `backend-protocol: HTTPS`, `auth-tls-*` (mTLS to backend) | `BackendTLSPolicy` — **experimental channel** on Gateway API v1.3.0 (K8s 1.34), so unavailable here. Graduated to standard in v1.4.0 (K8s 1.35+). |
 
 ---
 

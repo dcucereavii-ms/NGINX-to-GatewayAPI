@@ -52,7 +52,7 @@ flipping it back.
 |---|---|
 | AKS | 1.27+ (we used 1.34); OIDC issuer + Workload Identity **enabled** |
 | Add-ons | Azure Key Vault Secrets Provider (CSI); App Routing add-on |
-| Azure CLI | Latest, with `aks-preview` extension |
+| Azure CLI | 2.86.0+ — `--enable-gateway-api` and `--enable-app-routing-istio` shipped in 2.86.0. Both features are GA as of AKS release v20260428 (28 Apr 2026): no `aks-preview` extension, no feature flags. |
 | Tools | `kubectl`, `helm` 3.x, `az`, PowerShell 7 (or bash) |
 | Key Vault | RBAC authorization mode; certs imported as PFX |
 | Permissions | "Key Vault Secrets User" + "Key Vault Certificate User" granted to the CSI add-on identity |
@@ -344,9 +344,14 @@ kind: ReferenceGrant
 metadata: { name: gw-to-app1, namespace: app1 }
 spec:
   from: [{ group: gateway.networking.k8s.io, kind: Gateway, namespace: gw }]
-  to:   [{ group: "",                        kind: Secret }]
+  to:   [{ group: "",                        kind: Secret, name: tls-app1 }]
 ```
 One per app namespace.
+
+> **Always pin `name`.** Omitting it grants the Gateway namespace read access
+> to *every* Secret in the target namespace — present and future, including
+> application and database credentials. The YAML looks near-identical and
+> sails through review.
 
 ### 7.4 Optional: expose the Gateway on a private IP (internal LB)
 
@@ -556,10 +561,25 @@ Write-Host "`n=== HTTPRoutes ===" -ForegroundColor Cyan
 kubectl get httproute -A
 
 Write-Host "`n=== From Azure ===" -ForegroundColor Cyan
-az aks show -g <RG> -n <AKS> --query "{
-  managedGwApi:ingressProfile.gatewayApi.installation,
-  appRoutingIstio:ingressProfile.webAppRouting.gatewayApiImplementations.appRoutingIstio.mode
+# NOTE: `az aks show` CANNOT report Gateway API state. It calls a stable API
+# version (2025-05-01 / 2025-10-01 / 2026-01-01), and the Gateway API fields
+# are not projected on any of them - the query returns null on a cluster that
+# is fully working and terminating TLS. You must call a preview API version
+# directly, and the casing is `gatewayAPI` / `gatewayAPIImplementations`
+# (NOT `gatewayApi`).
+$id = az aks show -g <RG> -n <AKS> --query id -o tsv
+az rest --method get --url "https://management.azure.com$($id)?api-version=2026-05-02-preview" --query "{
+  managedGatewayAPI:properties.ingressProfile.gatewayAPI.installation,
+  appRoutingIstio:properties.ingressProfile.webAppRouting.gatewayAPIImplementations.appRoutingIstio.mode,
+  webAppRouting:properties.ingressProfile.webAppRouting.enabled
 }" -o jsonc
+# Expected on a working cluster:
+#   { "appRoutingIstio": "Enabled",
+#     "managedGatewayAPI": "Standard",
+#     "webAppRouting": true }
+#
+# The authoritative in-cluster check remains:
+#   kubectl get gatewayclass    ->  approuting-istio  ACCEPTED=True
 ```
 
 ---
@@ -568,9 +588,11 @@ az aks show -g <RG> -n <AKS> --query "{
 
 | File | Purpose |
 |---|---|
-| `manifests/apps/app-template.yaml` | Per-app Deployment + Service + SPC + syncer |
+| `manifests/apps/app-template.yaml` | Per-app Deployment + Service + SPC + syncer (**Option B** — you own the chain) |
 | `manifests/nginx/ingress.yaml` | NGINX Ingress objects (one per host) |
 | `manifests/istio/gateway.yaml` | Gateway + 3 listeners + 3 HTTPRoutes + 3 ReferenceGrants |
+| `manifests/istio/gateway-keyvault-optiona.yaml` | **Option A** — App Routing operator builds the Key Vault → TLS chain (no SPC, no syncer, no `certificateRefs`) |
+| `manifests/advanced/annotation-translations.yaml` | Worked examples: `ssl-redirect`, `canary-weight`, `canary-by-header`, `rewrite-target` |
 | `01-create-infra.ps1` … `08-validate-gateway.ps1` | Step-by-step automation |
 
 ---
