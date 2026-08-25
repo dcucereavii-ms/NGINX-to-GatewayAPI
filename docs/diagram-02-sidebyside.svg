@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="1040" viewBox="0 0 1460 1040" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="aGrey" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#5A6270"/>
+    </marker>
+    <marker id="aRed" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#B3261E"/>
+    </marker>
+    <marker id="aBlue" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#1565C0"/>
+    </marker>
+  </defs>
+
+  <rect width="1460" height="1040" fill="#ffffff"/>
+
+  <text x="730" y="52" text-anchor="middle" font-size="34" font-weight="700" fill="#17242E">Side-by-side migration — nothing underneath moves</text>
+  <text x="730" y="88" text-anchor="middle" font-size="19" fill="#5A6270">Same certificates. Same Services. Same pods. Two front doors.</text>
+
+  <!-- Key Vault -->
+  <rect x="430" y="112" width="600" height="98" rx="12" fill="#EFF6FC" stroke="#0078D4" stroke-width="2.5"/>
+  <text x="730" y="146" text-anchor="middle" font-size="21" font-weight="700" fill="#0B4E8A">Azure Key Vault — gwpoc5621-kv</text>
+  <text x="730" y="180" text-anchor="middle" font-size="17" fill="#26404F">cert-app1 · cert-app2 · cert-dev-wildcard</text>
+
+  <line x1="730" y1="210" x2="730" y2="256" stroke="#5A6270" stroke-width="2.5" marker-end="url(#aGrey)"/>
+  <text x="748" y="238" font-size="15" font-style="italic" fill="#5A6270">Private Endpoint  10.224.0.7</text>
+
+  <!-- CSI -->
+  <rect x="470" y="262" width="520" height="76" rx="12" fill="#F6F3FF" stroke="#6B4FBB" stroke-width="2.5"/>
+  <text x="730" y="292" text-anchor="middle" font-size="19" font-weight="700" fill="#4B2E9E">Secrets Store CSI Driver</text>
+  <text x="730" y="320" text-anchor="middle" font-size="15" fill="#5A5270">SecretProviderClass  →  materialises real K8s Secrets</text>
+
+  <line x1="730" y1="338" x2="730" y2="384" stroke="#5A6270" stroke-width="2.5" marker-end="url(#aGrey)"/>
+
+  <!-- Secrets -->
+  <rect x="330" y="390" width="800" height="112" rx="12" fill="#F1F9F3" stroke="#1E7B34" stroke-width="2.5"/>
+  <text x="730" y="418" text-anchor="middle" font-size="16" font-weight="700" fill="#146C2E">kubernetes.io/tls Secrets — one per app namespace</text>
+  <rect x="355" y="430" width="240" height="54" rx="8" fill="#ffffff" stroke="#59A96A" stroke-width="2"/>
+  <text x="475" y="453" text-anchor="middle" font-size="16" font-weight="600" fill="#17242E">tls-app1</text>
+  <text x="475" y="473" text-anchor="middle" font-size="14" fill="#5A6270">ns: app1</text>
+  <rect x="615" y="430" width="240" height="54" rx="8" fill="#ffffff" stroke="#59A96A" stroke-width="2"/>
+  <text x="735" y="453" text-anchor="middle" font-size="16" font-weight="600" fill="#17242E">tls-app2</text>
+  <text x="735" y="473" text-anchor="middle" font-size="14" fill="#5A6270">ns: app2</text>
+  <rect x="875" y="430" width="240" height="54" rx="8" fill="#ffffff" stroke="#59A96A" stroke-width="2"/>
+  <text x="995" y="453" text-anchor="middle" font-size="16" font-weight="600" fill="#17242E">tls-app3</text>
+  <text x="995" y="473" text-anchor="middle" font-size="14" fill="#5A6270">ns: app3</text>
+
+  <!-- fan out to the two stacks -->
+  <path d="M 470 502 L 385 556" fill="none" stroke="#B3261E" stroke-width="2.5" marker-end="url(#aRed)"/>
+  <path d="M 990 502 L 1075 556" fill="none" stroke="#1565C0" stroke-width="2.5" marker-end="url(#aBlue)"/>
+  <text x="730" y="536" text-anchor="middle" font-size="15" font-style="italic" fill="#5A6270">both stacks read the same Secrets</text>
+
+  <!-- BEFORE stack -->
+  <rect x="90" y="562" width="590" height="190" rx="14" fill="#FDF3F2" stroke="#B3261E" stroke-width="2.5"/>
+  <rect x="90" y="562" width="590" height="46" rx="14" fill="#F7DEDB"/>
+  <rect x="90" y="592" width="590" height="16" fill="#F7DEDB"/>
+  <text x="116" y="592" font-size="21" font-weight="700" fill="#8C1D18">Ingress-NGINX</text>
+  <rect x="500" y="574" width="158" height="26" rx="13" fill="#FFF3CD" stroke="#B8860B" stroke-width="1.5"/>
+  <text x="579" y="592" text-anchor="middle" font-size="13" font-weight="700" fill="#7A5B00">UNMAINTAINED</text>
+  <text x="116" y="644" font-size="16" fill="#26404F">controller v1.15.1 · ingressClass: nginx</text>
+  <text x="116" y="676" font-size="16" fill="#26404F">3 × Ingress objects + annotations</text>
+  <rect x="116" y="694" width="300" height="34" rx="8" fill="#ffffff" stroke="#B3261E" stroke-width="2"/>
+  <text x="266" y="717" text-anchor="middle" font-size="16" font-weight="700" fill="#8C1D18">PUBLIC  4.239.209.98</text>
+
+  <!-- AFTER stack -->
+  <rect x="780" y="562" width="590" height="190" rx="14" fill="#EFF6FF" stroke="#1565C0" stroke-width="2.5"/>
+  <rect x="780" y="562" width="590" height="46" rx="14" fill="#D8E9FB"/>
+  <rect x="780" y="592" width="590" height="16" fill="#D8E9FB"/>
+  <text x="806" y="592" font-size="21" font-weight="700" fill="#0B4E8A">Gateway API</text>
+  <rect x="1206" y="574" width="140" height="26" rx="13" fill="#DFF3E4" stroke="#1E7B34" stroke-width="1.5"/>
+  <text x="1276" y="592" text-anchor="middle" font-size="13" font-weight="700" fill="#146C2E">GA · MANAGED</text>
+  <text x="806" y="644" font-size="16" fill="#26404F">approuting-istio · Envoy + HPA + PDB</text>
+  <text x="806" y="676" font-size="16" fill="#26404F">1 × Gateway + 3 × HTTPRoute</text>
+  <rect x="806" y="694" width="300" height="34" rx="8" fill="#ffffff" stroke="#1565C0" stroke-width="2"/>
+  <text x="956" y="717" text-anchor="middle" font-size="16" font-weight="700" fill="#0B4E8A">PRIVATE  10.224.0.6</text>
+
+  <!-- converge -->
+  <path d="M 385 752 L 470 806" fill="none" stroke="#B3261E" stroke-width="2.5" marker-end="url(#aRed)"/>
+  <path d="M 1075 752 L 990 806" fill="none" stroke="#1565C0" stroke-width="2.5" marker-end="url(#aBlue)"/>
+
+  <!-- shared band -->
+  <rect x="90" y="812" width="1280" height="148" rx="14" fill="#F5F7F6" stroke="#3E4C59" stroke-width="2.5" stroke-dasharray="0"/>
+  <text x="730" y="846" text-anchor="middle" font-size="19" font-weight="700" fill="#243B4A">The same backend Services — untouched by any of this</text>
+  <rect x="250" y="864" width="240" height="60" rx="10" fill="#ffffff" stroke="#3E4C59" stroke-width="2"/>
+  <text x="370" y="890" text-anchor="middle" font-size="17" font-weight="700" fill="#17242E">svc/app1</text>
+  <text x="370" y="911" text-anchor="middle" font-size="14" fill="#5A6270">Deployment · Pods</text>
+  <rect x="610" y="864" width="240" height="60" rx="10" fill="#ffffff" stroke="#3E4C59" stroke-width="2"/>
+  <text x="730" y="890" text-anchor="middle" font-size="17" font-weight="700" fill="#17242E">svc/app2</text>
+  <text x="730" y="911" text-anchor="middle" font-size="14" fill="#5A6270">Deployment · Pods</text>
+  <rect x="970" y="864" width="240" height="60" rx="10" fill="#ffffff" stroke="#3E4C59" stroke-width="2"/>
+  <text x="1090" y="890" text-anchor="middle" font-size="17" font-weight="700" fill="#17242E">svc/app3</text>
+  <text x="1090" y="911" text-anchor="middle" font-size="14" fill="#5A6270">Deployment · Pods</text>
+
+  <text x="730" y="1000" text-anchor="middle" font-size="18" fill="#5A6270">Cutover is a DNS change, one hostname at a time. Rollback is the same change, backwards.</text>
+</svg>

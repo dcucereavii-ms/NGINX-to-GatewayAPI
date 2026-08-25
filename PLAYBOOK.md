@@ -21,24 +21,11 @@ The procedure was validated end-to-end against a real cluster:
 
 ## 1. Architecture at a glance
 
-```
-                 ┌─────────────────────────────────────────┐
-                 │            Azure Key Vault              │
-                 │   cert-app1   cert-app2   cert-dev-*    │
-                 └─────────────────────────────────────────┘
-                                  │ (Secrets Store CSI driver,
-                                  │  Workload Identity, RBAC)
-                                  ▼
-   ┌────────────────────────┐         ┌────────────────────────┐
-   │     NGINX (today)      │         │ Gateway API (target)   │
-   │ ingress-nginx-ctrl     │         │ approuting-istio       │
-   │ Ingress + tls.secret   │         │ Gateway + HTTPRoute    │
-   │ LB IP: 52.228.114.247  │         │ LB IP: 52.228.99.244   │
-   └──────────┬─────────────┘         └──────────┬─────────────┘
-              │                                  │
-              ▼                                  ▼
-        Apps (app1/app2/app3) — same Services, no app changes
-```
+![Side-by-side migration topology](docs/diagram-02-sidebyside.png)
+
+Where the ownership boundary moves — this is the part that is not about features:
+
+![Ingress vs Gateway API: who owns what](docs/diagram-01-ownership.png)
 
 **Why parallel deployments matter**: both stacks share the same backend
 Services. You can flip DNS one host at a time and roll back instantly by
@@ -109,6 +96,12 @@ Document the result. You will compare it against the post-cutover state.
 ---
 
 ## 4. Key Vault & certificates
+
+The chain from Key Vault to a terminated TLS handshake has four links, and
+each one fails in a way that is easy to miss: three of the four keep working
+perfectly until something restarts. That is what makes them expensive.
+
+![Key Vault to TLS: the four silent failures](docs/diagram-03-kv-chain.png)
 
 Create the vault (RBAC mode) and import three PFX certificates:
 ```powershell

@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="900" viewBox="0 0 1460 900" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#C4373C"/>
+    </marker>
+    <marker id="arrBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0F6CBD"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0B1F33" flood-opacity="0.13"/>
+    </filter>
+  </defs>
+
+  <rect width="1460" height="900" fill="#FFFFFF"/>
+
+  <!-- ============ HEADER ============ -->
+  <text x="730" y="52" text-anchor="middle" font-size="30" font-weight="700" fill="#182A44">Ingress vs Gateway API — who owns what</text>
+  <text x="730" y="86" text-anchor="middle" font-size="17" fill="#5A6B80">The migration isn't about features. It's about where the boundaries are.</text>
+
+  <!-- ============================================================ -->
+  <!-- LEFT PANEL — BEFORE                                          -->
+  <!-- ============================================================ -->
+  <rect x="40" y="120" width="650" height="700" rx="16" fill="#FDF7F7" stroke="#EBC9CB" stroke-width="1.5"/>
+  <text x="365" y="166" text-anchor="middle" font-size="23" font-weight="700" fill="#A4262C">BEFORE — Ingress</text>
+
+  <!-- three teams -->
+  <g filter="url(#shadow)">
+    <rect x="75"  y="196" width="180" height="54" rx="9" fill="#FFFFFF" stroke="#C9B7B8" stroke-width="1.5"/>
+    <rect x="275" y="196" width="180" height="54" rx="9" fill="#FFFFFF" stroke="#C9B7B8" stroke-width="1.5"/>
+    <rect x="475" y="196" width="180" height="54" rx="9" fill="#FFFFFF" stroke="#C9B7B8" stroke-width="1.5"/>
+  </g>
+  <text x="165" y="229" text-anchor="middle" font-size="16" font-weight="600" fill="#2B3A4D">Platform team</text>
+  <text x="365" y="229" text-anchor="middle" font-size="16" font-weight="600" fill="#2B3A4D">App team A</text>
+  <text x="565" y="229" text-anchor="middle" font-size="16" font-weight="600" fill="#2B3A4D">App team B</text>
+
+  <!-- converging arrows -->
+  <path d="M 165 252 L 300 322" stroke="#C4373C" stroke-width="2.2" fill="none" marker-end="url(#arrRed)"/>
+  <path d="M 365 252 L 365 322" stroke="#C4373C" stroke-width="2.2" fill="none" marker-end="url(#arrRed)"/>
+  <path d="M 565 252 L 430 322" stroke="#C4373C" stroke-width="2.2" fill="none" marker-end="url(#arrRed)"/>
+  <text x="365" y="292" text-anchor="middle" font-size="13.5" font-style="italic" fill="#A4262C">all three need edit access</text>
+
+  <!-- the single ingress object -->
+  <g filter="url(#shadow)">
+    <rect x="75" y="330" width="580" height="252" rx="12" fill="#FFFFFF" stroke="#D13438" stroke-width="2.4"/>
+  </g>
+  <rect x="75" y="330" width="580" height="40" rx="12" fill="#FBEAEA"/>
+  <rect x="75" y="356" width="580" height="14" fill="#FBEAEA"/>
+  <text x="95" y="357" font-size="16" font-weight="700" fill="#A4262C">kind: Ingress</text>
+  <text x="635" y="357" text-anchor="end" font-size="14" fill="#96504F">namespace: app1</text>
+
+  <!-- rows: yaml + owner pill -->
+  <g font-size="14.5" font-family="'Cascadia Code', Consolas, monospace" fill="#243A5E">
+    <text x="96" y="404">tls.secretName: tls-app1</text>
+    <text x="96" y="442">rules[].host: app1.contoso.local</text>
+    <text x="96" y="480">paths[].backend: svc/app1</text>
+    <text x="96" y="518">rewrite-target: /$1</text>
+    <text x="96" y="556">ssl-redirect: "true"</text>
+  </g>
+
+  <g font-size="12" font-weight="700" text-anchor="middle">
+    <rect x="470" y="390" width="164" height="22" rx="11" fill="#E3ECF7"/>
+    <text x="552" y="405" fill="#1F4C86">PLATFORM CONCERN</text>
+    <rect x="470" y="428" width="164" height="22" rx="11" fill="#E3ECF7"/>
+    <text x="552" y="443" fill="#1F4C86">PLATFORM CONCERN</text>
+    <rect x="470" y="466" width="164" height="22" rx="11" fill="#E4F1E4"/>
+    <text x="552" y="481" fill="#14691A">APP CONCERN</text>
+    <rect x="470" y="504" width="164" height="22" rx="11" fill="#FBE9CE"/>
+    <text x="552" y="519" fill="#8A5A08">UNVALIDATED STRING</text>
+    <rect x="470" y="542" width="164" height="22" rx="11" fill="#FBE9CE"/>
+    <text x="552" y="557" fill="#8A5A08">UNVALIDATED STRING</text>
+  </g>
+
+  <!-- caption -->
+  <rect x="75" y="612" width="580" height="96" rx="10" fill="#FBEAEA" stroke="#E4B9BB" stroke-width="1.2"/>
+  <text x="365" y="644" text-anchor="middle" font-size="17" font-weight="700" fill="#A4262C">One object. One RBAC boundary.</text>
+  <text x="365" y="670" text-anchor="middle" font-size="14.5" fill="#7D3437">To let App team A change a URL path, you must also</text>
+  <text x="365" y="691" text-anchor="middle" font-size="14.5" fill="#7D3437">let them change the TLS certificate. There is no Option C.</text>
+
+  <!-- footnote: the CVE callback -->
+  <rect x="75" y="726" width="580" height="66" rx="10" fill="#FFF6E6" stroke="#F0D6A8" stroke-width="1.2"/>
+  <text x="365" y="754" text-anchor="middle" font-size="14" font-weight="600" fill="#8A5A08">Those unvalidated strings are how IngressNightmare</text>
+  <text x="365" y="776" text-anchor="middle" font-size="14" fill="#8A5A08">(CVE-2025-1974, CVSS 9.8) became possible.</text>
+
+  <!-- ============================================================ -->
+  <!-- RIGHT PANEL — AFTER                                          -->
+  <!-- ============================================================ -->
+  <rect x="770" y="120" width="650" height="700" rx="16" fill="#F4F9FD" stroke="#BFDCF2" stroke-width="1.5"/>
+  <text x="1095" y="166" text-anchor="middle" font-size="23" font-weight="700" fill="#0F6CBD">AFTER — Gateway API</text>
+
+  <!-- GatewayClass -->
+  <g filter="url(#shadow)">
+    <rect x="895" y="192" width="400" height="64" rx="10" fill="#FFFFFF" stroke="#8FB9DE" stroke-width="1.8"/>
+  </g>
+  <text x="917" y="219" font-size="15.5" font-weight="700" fill="#182A44">GatewayClass</text>
+  <text x="917" y="241" font-size="13" font-family="'Cascadia Code', Consolas, monospace" fill="#4C6076">approuting-istio</text>
+  <rect x="1165" y="211" width="110" height="26" rx="13" fill="#DCEBF9"/>
+  <text x="1220" y="229" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0F5FA8">AZURE</text>
+
+  <path d="M 1095 258 L 1095 296" stroke="#0F6CBD" stroke-width="2.2" fill="none" marker-end="url(#arrBlue)"/>
+
+  <!-- Gateway -->
+  <g filter="url(#shadow)">
+    <rect x="845" y="300" width="500" height="166" rx="12" fill="#FFFFFF" stroke="#0F6CBD" stroke-width="2.4"/>
+  </g>
+  <rect x="845" y="300" width="500" height="42" rx="12" fill="#E4F0FB"/>
+  <rect x="845" y="328" width="500" height="14" fill="#E4F0FB"/>
+  <text x="866" y="329" font-size="16" font-weight="700" fill="#0F5FA8">kind: Gateway</text>
+  <rect x="1178" y="308" width="148" height="26" rx="13" fill="#C9E1F7"/>
+  <text x="1252" y="326" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0F5FA8">PLATFORM TEAM</text>
+  <g font-size="13.5" font-family="'Cascadia Code', Consolas, monospace" fill="#243A5E">
+    <text x="866" y="372">namespace: gw</text>
+    <text x="866" y="398">listeners[].hostname</text>
+    <text x="866" y="424">listeners[].tls.certificateRefs</text>
+    <text x="866" y="450">infrastructure.annotations (public/private IP)</text>
+  </g>
+
+  <!-- arrows to routes -->
+  <path d="M 1000 468 L 900 532" stroke="#0F6CBD" stroke-width="2.2" fill="none" marker-end="url(#arrBlue)"/>
+  <path d="M 1095 468 L 1095 532" stroke="#0F6CBD" stroke-width="2.2" fill="none" marker-end="url(#arrBlue)"/>
+  <path d="M 1190 468 L 1290 532" stroke="#0F6CBD" stroke-width="2.2" fill="none" marker-end="url(#arrBlue)"/>
+  <text x="980" y="514" text-anchor="middle" font-size="12.5" font-style="italic" fill="#5C7A96">parentRefs</text>
+
+  <!-- three HTTPRoutes -->
+  <g filter="url(#shadow)">
+    <rect x="800"  y="540" width="190" height="116" rx="10" fill="#FFFFFF" stroke="#6FA96F" stroke-width="1.8"/>
+    <rect x="1000" y="540" width="190" height="116" rx="10" fill="#FFFFFF" stroke="#6FA96F" stroke-width="1.8"/>
+    <rect x="1200" y="540" width="190" height="116" rx="10" fill="#FFFFFF" stroke="#6FA96F" stroke-width="1.8"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="895"  y="566" font-size="14.5" font-weight="700" fill="#14691A">HTTPRoute</text>
+    <text x="1095" y="566" font-size="14.5" font-weight="700" fill="#14691A">HTTPRoute</text>
+    <text x="1295" y="566" font-size="14.5" font-weight="700" fill="#14691A">HTTPRoute</text>
+  </g>
+  <g text-anchor="middle" font-size="13" font-family="'Cascadia Code', Consolas, monospace" fill="#4C6076">
+    <text x="895"  y="590">ns: app1</text>
+    <text x="1095" y="590">ns: app2</text>
+    <text x="1295" y="590">ns: app3</text>
+  </g>
+  <g text-anchor="middle" font-size="12.5" fill="#3D5266">
+    <text x="895"  y="616">paths, headers,</text>
+    <text x="895"  y="634">weights → svc</text>
+    <text x="1095" y="616">paths, headers,</text>
+    <text x="1095" y="634">weights → svc</text>
+    <text x="1295" y="616">paths, headers,</text>
+    <text x="1295" y="634">weights → svc</text>
+  </g>
+  <rect x="1002" y="668" width="186" height="26" rx="13" fill="#D6EBD6"/>
+  <text x="1095" y="686" text-anchor="middle" font-size="11.5" font-weight="700" fill="#14691A">APP TEAMS</text>
+
+  <!-- caption -->
+  <rect x="800" y="710" width="590" height="82" rx="10" fill="#E4F0FB" stroke="#B4D5EF" stroke-width="1.2"/>
+  <text x="1095" y="740" text-anchor="middle" font-size="17" font-weight="700" fill="#0F5FA8">Three objects. Three owners.</text>
+  <text x="1095" y="765" text-anchor="middle" font-size="14.5" fill="#2E5C86">App teams ship routes all day, in their own namespaces.</text>
+  <text x="1095" y="784" text-anchor="middle" font-size="14.5" fill="#2E5C86">They cannot touch TLS, the IP, or the load balancer.</text>
+
+  <!-- divider -->
+  <line x1="730" y1="150" x2="730" y2="790" stroke="#DCE3EB" stroke-width="1.5" stroke-dasharray="5 6"/>
+
+  <!-- footer -->
+  <text x="730" y="866" text-anchor="middle" font-size="14" fill="#7A8899">The same routing intent, split along the boundaries your org chart already has.</text>
+</svg>

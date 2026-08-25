@@ -16,23 +16,17 @@ The full step-by-step explanation lives in **[PLAYBOOK.md](PLAYBOOK.md)**.
 
 ## Topology
 
-```
-                 ┌─────────────────────────────────────────┐
-                 │            Azure Key Vault              │
-                 │   cert-app1   cert-app2   cert-dev-*    │
-                 └─────────────────────────────────────────┘
-                                  │  Secrets Store CSI driver
-                                  ▼  (Workload Identity, RBAC)
-   ┌────────────────────────┐         ┌────────────────────────┐
-   │     NGINX (Phase 1)    │         │ Gateway API (Phase 2)  │
-   │ ingress-nginx-ctrl     │         │ approuting-istio       │
-   │ Ingress + tls.secret   │         │ Gateway + HTTPRoute    │
-   │ LB IP (e.g. 52.x.x.x)  │         │ LB IP (e.g. 52.y.y.y)  │
-   └──────────┬─────────────┘         └──────────┬─────────────┘
-              │                                  │
-              ▼                                  ▼
-        Apps (app1 / app2 / app3) — same Services, no app changes
-```
+![Side-by-side migration topology](docs/diagram-02-sidebyside.png)
+
+Both stacks read the **same** `kubernetes.io/tls` Secrets and route to the
+**same** backend Services. The IPs shown are from the reference cluster this
+POC was validated on: NGINX on a public IP, the Gateway on a private one.
+Cutover is a DNS change, one hostname at a time; rollback is the same change,
+backwards.
+
+The ownership boundary this migration actually moves:
+
+![Ingress vs Gateway API: who owns what](docs/diagram-01-ownership.png)
 
 ---
 
