@@ -14,8 +14,9 @@ The procedure was validated end-to-end against a real cluster:
 - Cluster: `aks-gateway-test` / `rg-gateway-test` / `canadacentral`, AKS 1.34
 - Hostnames: `app1.contoso.local`, `app2.contoso.local`, `app3.dev.contoso.local`
 - Certificates: 3 PFX files in Key Vault (one per host + one wildcard)
-- Result: NGINX (`52.228.114.247`) and Gateway (`52.228.99.244`) ran in parallel
-  for safe cutover; both terminate TLS with KV-issued certs.
+- Result: NGINX (`4.239.209.98`, public) and the Gateway (`10.224.0.6`, private
+  internal LB) ran in parallel for safe cutover; both terminate TLS with
+  KV-issued certs.
 
 ---
 
@@ -455,9 +456,14 @@ Update DNS A records one host at a time:
 
 | Host | From IP (NGINX) | To IP (Gateway) |
 |---|---|---|
-| app1.contoso.local | 52.228.114.247 | 52.228.99.244 |
-| app2.contoso.local | 52.228.114.247 | 52.228.99.244 |
-| app3.dev.contoso.local | 52.228.114.247 | 52.228.99.244 |
+| app1.contoso.local | 4.239.209.98 | 10.224.0.6 |
+| app2.contoso.local | 4.239.209.98 | 10.224.0.6 |
+| app3.dev.contoso.local | 4.239.209.98 | 10.224.0.6 |
+
+> The Gateway in this POC sits behind an **internal** load balancer, so its
+> address is private. Substitute your own Gateway IP — `kubectl get svc
+> -n gw <gateway>-approuting-istio` — and note that a private target only
+> resolves usefully from inside the VNet or over ExpressRoute/VPN.
 
 After each host:
 1. Lower TTL ahead of time (e.g., 60s) to enable fast rollback.
