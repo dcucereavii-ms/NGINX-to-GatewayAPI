@@ -105,7 +105,7 @@ spec:
         options:
           # UNVERSIONED certificate URI - this is what makes rotation automatic.
           # A versioned URI pins you to one certificate version forever.
-          kubernetes.azure.com/tls-cert-keyvault-uri: https://gwpoc5621-kv.vault.azure.net/certificates/cert-app1
+          kubernetes.azure.com/tls-cert-keyvault-uri: https://<KV>.vault.azure.net/certificates/cert-app1
           # ServiceAccount federated to the UAMI, in THIS namespace.
           kubernetes.azure.com/tls-cert-service-account: gw-kv-sa
       allowedRoutes: { namespaces: { from: All } }

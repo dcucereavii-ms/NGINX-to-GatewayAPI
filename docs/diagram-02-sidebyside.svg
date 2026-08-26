@@ -18,7 +18,7 @@
 
   <!-- Key Vault -->
   <rect x="430" y="112" width="600" height="98" rx="12" fill="#EFF6FC" stroke="#0078D4" stroke-width="2.5"/>
-  <text x="730" y="146" text-anchor="middle" font-size="21" font-weight="700" fill="#0B4E8A">Azure Key Vault — gwpoc5621-kv</text>
+  <text x="730" y="146" text-anchor="middle" font-size="21" font-weight="700" fill="#0B4E8A">Azure Key Vault</text>
   <text x="730" y="180" text-anchor="middle" font-size="17" fill="#26404F">cert-app1 · cert-app2 · cert-dev-wildcard</text>
 
   <line x1="730" y1="210" x2="730" y2="256" stroke="#5A6270" stroke-width="2.5" marker-end="url(#aGrey)"/>
